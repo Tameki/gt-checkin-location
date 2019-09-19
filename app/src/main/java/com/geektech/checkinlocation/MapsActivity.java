@@ -54,6 +54,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private boolean mIsLoaded = false;
 
+    //region Lifecycle
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,10 +74,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 super.onLocationResult(locationResult);
                 Location location = locationResult.getLastLocation();
 
-                mPathLocations.add(location);
-                mLatestLocation = location;
+                if (isLocationChanged(location)) {
+                    mPathLocations.add(location);
+                    mLatestLocation = location;
 
-                refreshMarker();
+                    renderMapData();
+                }
             }
         };
 
@@ -95,10 +99,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         removeLocationUpdates();
     }
 
-    private void initMap() {
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+    //endregion
+
+    //region Location
+
+    private boolean isLocationChanged(Location location) {
+        if (mLatestLocation == null) return true;
+
+        LatLng latLng = new LatLng(
+                mLatestLocation.getLatitude(),
+                mLatestLocation.getLongitude()
+        );
+
+        LatLng latLngTo = new LatLng(
+                location.getLatitude(),
+                location.getLongitude()
+        );
+
+        double distance = SphericalUtil.computeDistanceBetween(latLng, latLngTo);
+
+        return distance > 2.0;
     }
 
     private void initLocationRequest() {
@@ -130,7 +150,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }).check();
     }
 
-
     private void requestLocationUpdates() {
         try {
             mFusedLocationProvider.requestLocationUpdates(
@@ -147,7 +166,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mFusedLocationProvider.removeLocationUpdates(mLocationCallback);
     }
 
-
     private void getLastLocation() {
         mFusedLocationProvider.getLastLocation()
                 .addOnCompleteListener(new OnCompleteListener<Location>() {
@@ -155,10 +173,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     public void onComplete(@NonNull Task<Location> task) {
                         if (task.isSuccessful() && task.getResult() != null) {
                             mLatestLocation = task.getResult();
-                            refreshMarker();
+                            renderMapData();
                         }
                     }
                 });
+    }
+
+    //endregion
+
+    //region Render
+
+    private void initMap() {
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
     }
 
     @Override
@@ -168,7 +196,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         getLastLocation();
     }
 
-    private void refreshMarker() {
+    private void renderMapData() {
         if (mLatestLocation != null) {
             LatLng latLng = new LatLng(
                     mLatestLocation.getLatitude(),
@@ -252,4 +280,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f));
         }
     }
+
+    //endregion
 }
