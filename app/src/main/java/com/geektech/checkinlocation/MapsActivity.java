@@ -5,10 +5,12 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
 import android.Manifest;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
+import android.widget.TextView;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
@@ -21,8 +23,10 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+import com.google.maps.android.SphericalUtil;
 import com.karumi.dexter.Dexter;
 import com.karumi.dexter.PermissionToken;
 import com.karumi.dexter.listener.PermissionDeniedResponse;
@@ -30,9 +34,12 @@ import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.single.PermissionListener;
 
+import java.util.ArrayList;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
+    private TextView mDistanceTv;
 
     private FusedLocationProviderClient mFusedLocationProvider;
     private LocationRequest mLocationRequest;
@@ -40,11 +47,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Nullable
     private Location mLatestLocation;
+    private ArrayList<Location> mPathLocations = new ArrayList<>();
+
+    private boolean mIsLoaded = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        mDistanceTv = findViewById(R.id.distance);
 
         mFusedLocationProvider = LocationServices
                 .getFusedLocationProviderClient(
@@ -56,10 +68,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onLocationResult(LocationResult locationResult) {
                 super.onLocationResult(locationResult);
                 Location location = locationResult.getLastLocation();
+
+                mPathLocations.add(location);
                 mLatestLocation = location;
-                Log.d("ololo", "On location result " +
-                        location.getLongitude() + " " +
-                        location.getLatitude());
+
                 refreshMarker();
             }
         };
@@ -155,14 +167,86 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void refreshMarker() {
         if (mLatestLocation != null) {
-            LatLng sydney = new LatLng(
+            LatLng latLng = new LatLng(
                     mLatestLocation.getLatitude(),
                     mLatestLocation.getLongitude()
             );
+
             mMap.clear();
-            mMap.addMarker(new MarkerOptions().position(sydney).title("Current location"));
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
-            mMap.animateCamera(CameraUpdateFactory.zoomTo(15f));
+            mMap.addMarker(new MarkerOptions().position(latLng).title("Current location"));
+
+            renderPath(mPathLocations);
+            if (!mIsLoaded) {
+                mIsLoaded = true;
+                showMyLocation();
+            }
+        }
+    }
+
+    private void renderPath(ArrayList<Location> path) {
+        if (mMap == null) return;
+        if (path.size() < 2) return;
+
+        PolylineOptions options = new PolylineOptions();
+
+        options.color(Color.BLACK);
+        options.width(5f);
+
+
+        //start i = 0
+        //loop: i++, i = 1
+        //      i++, i = 2
+        //end: loop ++, i = 3
+
+        //start i = 3
+        //loop: i++, i = 4
+        //      i++, i = 5
+        //end: loop ++, i = 6
+
+        //------------------------------------
+
+        //start i = 0
+        //loop: i + 1 = 0 + 1
+        //      i + 1 = 0 + 1
+        //end: loop++, i = 1
+
+        //start i = 10 // From
+        //loop: i + 1 = 10 + 1 // To
+        //      i + 1 = 10 + 1 // To
+        //end: loop++, i = 11
+
+        double distance = 0.0;
+
+        for (int i = 0; i < path.size(); i++) {
+            LatLng latLng = new LatLng(
+                    path.get(i).getLatitude(),
+                    path.get(i).getLongitude()
+            );
+
+            if (i < path.size() - 1) {
+                LatLng latLngTo = new LatLng(
+                        path.get(i + 1).getLatitude(),
+                        path.get(i + 1).getLongitude()
+                );
+
+                distance += SphericalUtil.computeDistanceBetween(latLng, latLngTo);
+            }
+
+            options.add(latLng);
+        }
+
+        mDistanceTv.setText("Distance: " + distance + "m");
+        mMap.addPolyline(options);
+    }
+
+    //TODO: Add show my location button
+    private void showMyLocation() {
+        if (mLatestLocation != null) {
+            LatLng latLng = new LatLng(
+                    mLatestLocation.getLatitude(),
+                    mLatestLocation.getLongitude()
+            );
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15f));
         }
     }
 }
