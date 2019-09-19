@@ -34,6 +34,7 @@ import com.karumi.dexter.listener.PermissionGrantedResponse;
 import com.karumi.dexter.listener.PermissionRequest;
 import com.karumi.dexter.listener.single.PermissionListener;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
@@ -44,6 +45,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private FusedLocationProviderClient mFusedLocationProvider;
     private LocationRequest mLocationRequest;
     private LocationCallback mLocationCallback;
+
+    private DecimalFormat dfFormat = new DecimalFormat("#,##0.0");
 
     @Nullable
     private Location mLatestLocation;
@@ -235,7 +238,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             options.add(latLng);
         }
 
-        mDistanceTv.setText("Distance: " + distance + "m");
+        mDistanceTv.setText("Distance: " + dfFormat.format(distance) + "m");
         mMap.addPolyline(options);
     }
 
